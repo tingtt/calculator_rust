@@ -1,7 +1,12 @@
+mod application;
+
 use yew::prelude::*;
+use application::logger::console;
 
 #[function_component]
 fn App() -> Html {
+  console::log("main", "loaded".to_string());
+
   html! {
     <div class={classes!("p-8")}>
       <div class={classes!("outline","outline-1","rounded","max-w-[480px]")}>
