@@ -63,8 +63,10 @@ fn App() -> Html {
             if (*num_entry).len() != 0 {
               calc.entry(Entry::Num(num_entry.parse().unwrap()));
               num_entry.set("".to_string());
+              calc.entry(Entry::Sub);
+            } else {
+              num_entry.set((*num_entry).to_string() + value.as_str());
             }
-            calc.entry(Entry::Sub);
           }
           "+" => {
             if (*num_entry).len() != 0 {
