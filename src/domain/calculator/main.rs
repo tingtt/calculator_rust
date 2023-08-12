@@ -145,7 +145,6 @@ fn calc(args: &Vec<Entry>) -> Option<f32> {
       Itertools::join(&mut args.clone().iter(), ""),
     ),
   );
-  let mut args = args.clone();
   if args.len() == 0 {
     return None;
   }
@@ -161,7 +160,38 @@ fn calc(args: &Vec<Entry>) -> Option<f32> {
     }
   }
 
-  // Unwrap and calculate "(...)"
+  let mut args = args.clone();
+
+  if let Some(args_) = unwrap_parentheses(&args) {
+    args = args_;
+  } else {
+    return None;
+  }
+  if let Some(args_) = calculate_multiplication_division_remainder(&args) {
+    args = args_;
+  } else {
+    return None;
+  }
+  if let Some(args_) = calculate_addition_subtraction(&args) {
+    args = args_;
+  } else {
+    return None;
+  }
+
+  if args.len() != 1 {
+    console::log("calculator", "Error: something wrong".to_string());
+    return None;
+  }
+  if let Entry::Num(num) = args[0] {
+    return Option::from(num);
+  } else {
+    console::log("calculator", "Error: something wrong".to_string());
+    return None;
+  }
+}
+
+fn unwrap_parentheses(args: &Vec<Entry>) -> Option<Vec<Entry>> {
+  let mut args = args.clone();
   for mut i in 0..args.len() {
     if i > args.len() - 1 {
       break;
@@ -203,8 +233,11 @@ fn calc(args: &Vec<Entry>) -> Option<f32> {
       return None;
     }
   }
+  Option::from(args)
+}
 
-  // Calculate "*", "/" and "%"
+fn calculate_multiplication_division_remainder(args: &Vec<Entry>) -> Option<Vec<Entry>> {
+  let mut args = args.clone();
   let mut i = 0;
   loop {
     i += 1;
@@ -262,8 +295,11 @@ fn calc(args: &Vec<Entry>) -> Option<f32> {
       _ => {}
     }
   }
+  Option::from(args)
+}
 
-  // Calculate "+", "-"
+fn calculate_addition_subtraction(args: &Vec<Entry>) -> Option<Vec<Entry>> {
+  let mut args = args.clone();
   let mut i = 0;
   loop {
     i += 1;
@@ -316,15 +352,5 @@ fn calc(args: &Vec<Entry>) -> Option<f32> {
       _ => {}
     }
   }
-
-  if args.len() != 1 {
-    console::log("calculator", "Error: something wrong".to_string());
-    return None;
-  }
-  if let Entry::Num(num) = args[0] {
-    return Option::from(num);
-  } else {
-    console::log("calculator", "Error: something wrong".to_string());
-    return None;
-  }
+  Option::from(args)
 }
