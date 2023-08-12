@@ -107,7 +107,7 @@ impl Calculator {
     Itertools::join(&mut stack.iter(), " ")
   }
 
-  pub fn get_result(&self) -> Option<f32> {
+  pub fn get_result(&self) -> Result<f32, String> {
     let stack = self.stack.lock().unwrap();
     calc(&stack)
   }
@@ -137,7 +137,7 @@ impl ops::DerefMut for Calculator {
   }
 }
 
-fn calc(args: &Vec<Entry>) -> Option<f32> {
+fn calc(args: &Vec<Entry>) -> Result<f32, String> {
   console::log(
     "calculator",
     format!(
@@ -146,51 +146,33 @@ fn calc(args: &Vec<Entry>) -> Option<f32> {
     ),
   );
   if args.len() == 0 {
-    return None;
+    return Err("".to_string());
   }
   if args.len() == 1 {
     if let Entry::Num(num) = args[0] {
-      return Option::from(num);
+      return Ok(num);
     } else {
-      console::log(
-        "calculator",
-        format!("Error: Expected numeric, but found `{}`", args[0]),
-      );
-      return None;
+      return Err(format!("Error: Expected numeric, but found `{}`", args[0]));
     }
   }
 
   let mut args = args.clone();
 
-  if let Some(args_) = unwrap_parentheses(&args) {
-    args = args_;
-  } else {
-    return None;
-  }
-  if let Some(args_) = calculate_multiplication_division_remainder(&args) {
-    args = args_;
-  } else {
-    return None;
-  }
-  if let Some(args_) = calculate_addition_subtraction(&args) {
-    args = args_;
-  } else {
-    return None;
-  }
+  args = unwrap_parentheses(&args)?;
+  args = calculate_multiplication_division_remainder(&args)?;
+  args = calculate_addition_subtraction(&args)?;
 
   if args.len() != 1 {
-    console::log("calculator", "Error: something wrong".to_string());
-    return None;
+    return Err("Error: something wrong".to_string());
   }
   if let Entry::Num(num) = args[0] {
-    return Option::from(num);
+    return Ok(num);
   } else {
-    console::log("calculator", "Error: something wrong".to_string());
-    return None;
+    return Err("Error: something wrong".to_string());
   }
 }
 
-fn unwrap_parentheses(args: &Vec<Entry>) -> Option<Vec<Entry>> {
+fn unwrap_parentheses(args: &Vec<Entry>) -> Result<Vec<Entry>, String> {
   let mut args = args.clone();
   for mut i in 0..args.len() {
     if i > args.len() - 1 {
@@ -209,34 +191,27 @@ fn unwrap_parentheses(args: &Vec<Entry>) -> Option<Vec<Entry>> {
           if call_found_cound > 0 {
             continue 'call;
           }
-          let sub_result = calc(&args[call + 1..i].to_vec());
-          if let Some(sub_result) = sub_result {
-            let original = args.clone();
-            args = original[0..call].to_vec();
-            args.push(Entry::Num(sub_result));
-            args.append(&mut original[i + 1..].to_vec());
-            i = call;
-            break 'call;
-          } else {
-            console::log("calculator", "Error: something wrong".to_string());
-            return None;
-          }
+          let sub_result = calc(&args[call + 1..i].to_vec())?;
+          let original = args.clone();
+          args = original[0..call].to_vec();
+          args.push(Entry::Num(sub_result));
+          args.append(&mut original[i + 1..].to_vec());
+          i = call;
+          break 'call;
         }
         if i == args.len() - 1 {
-          console::log("calculator", "Error: `)` not found".to_string());
-          return None;
+          return Err("Error: `)` not found".to_string());
         }
       }
     }
     if let Entry::Return = args[i] {
-      console::log("calculator", "Error: `(` not found".to_string());
-      return None;
+      return Err("Error: `(` not found".to_string());
     }
   }
-  Option::from(args)
+  Ok(args)
 }
 
-fn calculate_multiplication_division_remainder(args: &Vec<Entry>) -> Option<Vec<Entry>> {
+fn calculate_multiplication_division_remainder(args: &Vec<Entry>) -> Result<Vec<Entry>, String> {
   let mut args = args.clone();
   let mut i = 0;
   loop {
@@ -247,11 +222,7 @@ fn calculate_multiplication_division_remainder(args: &Vec<Entry>) -> Option<Vec<
     match args[i] {
       Entry::Mul | Entry::Div | Entry::Rem => {
         if i == args.len() - 1 {
-          console::log(
-            "calculator",
-            "Error: Expected numeric, but found `EOF`".to_string(),
-          );
-          return None;
+          return Err("Error: Expected numeric, but found `EOF`".to_string());
         }
         console::log(
           "calculator",
@@ -270,7 +241,9 @@ fn calculate_multiplication_division_remainder(args: &Vec<Entry>) -> Option<Vec<
               Entry::Div => args.push(Entry::Num(num1 / num2)),
               Entry::Rem => args.push(Entry::Num(num1 % num2)),
               _ => {
-                return None;
+                return Err(
+                  "Error: Expected operator ('*', '/', '%'), but found `EOF`".to_string(),
+                );
               }
             }
             if original.len() > i + 2 {
@@ -278,27 +251,25 @@ fn calculate_multiplication_division_remainder(args: &Vec<Entry>) -> Option<Vec<
               i -= 1;
             }
           } else {
-            console::log(
-              "calculator",
-              format!("Error: Expected numeric, but found `{}`", args[i + 1]),
-            );
-            return None;
+            return Err(format!(
+              "Error: Expected numeric, but found `{}`",
+              args[i + 1]
+            ));
           }
         } else {
-          console::log(
-            "calculator",
-            format!("Error: Expected numeric, but found `{}`", args[i - 1]),
-          );
-          return None;
+          return Err(format!(
+            "Error: Expected numeric, but found `{}`",
+            args[i - 1]
+          ));
         }
       }
       _ => {}
     }
   }
-  Option::from(args)
+  Ok(args)
 }
 
-fn calculate_addition_subtraction(args: &Vec<Entry>) -> Option<Vec<Entry>> {
+fn calculate_addition_subtraction(args: &Vec<Entry>) -> Result<Vec<Entry>, String> {
   let mut args = args.clone();
   let mut i = 0;
   loop {
@@ -309,7 +280,7 @@ fn calculate_addition_subtraction(args: &Vec<Entry>) -> Option<Vec<Entry>> {
     match args[i] {
       Entry::Add | Entry::Sub => {
         if i == args.len() - 1 {
-          return None;
+          return Err("Error: Expected numeric, but found `EOF`".to_string());
         }
         console::log(
           "calculator",
@@ -327,7 +298,7 @@ fn calculate_addition_subtraction(args: &Vec<Entry>) -> Option<Vec<Entry>> {
               Entry::Add => args.push(Entry::Num(num1 + num2)),
               Entry::Sub => args.push(Entry::Num(num1 - num2)),
               _ => {
-                return None;
+                return Err("Error: Expected operator ('+', '-'), but found `EOF`".to_string());
               }
             }
             if original.len() > i + 2 {
@@ -335,22 +306,20 @@ fn calculate_addition_subtraction(args: &Vec<Entry>) -> Option<Vec<Entry>> {
               i -= 1;
             }
           } else {
-            console::log(
-              "calculator",
-              format!("Error: Expected numeric, but found `{}`", args[i + 1]),
-            );
-            return None;
+            return Err(format!(
+              "Error: Expected numeric, but found `{}`",
+              args[i + 1]
+            ));
           }
         } else {
-          console::log(
-            "calculator",
-            format!("Error: Expected numeric, but found `{}`", args[i - 1]),
-          );
-          return None;
+          return Err(format!(
+            "Error: Expected numeric, but found `{}`",
+            args[i - 1]
+          ));
         }
       }
       _ => {}
     }
   }
-  Option::from(args)
+  Ok(args)
 }

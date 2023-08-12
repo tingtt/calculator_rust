@@ -82,7 +82,8 @@ fn App() -> Html {
               num_entry.set("".to_string());
             }
             let result = calc.get_result();
-            if let Some(result) = result {
+            if result.is_ok() {
+              let result = result.unwrap();
               ans.set(format!("Ans = {}", result));
               num_entry.set(format!("{}", result));
               calc.clear();
